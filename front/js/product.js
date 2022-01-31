@@ -1,127 +1,93 @@
-var str = window.location.href;
-var url = new URL(str);
-var idProduct = url.searchParams.get("id");
-console.log(idProduct);
-let article = "";
 
-const colorPicked = document. querySelector("#colors");
-const quantityPicked = document.querySelector("#quantity");
+let params = new URL(window.location.href).searchParams;
 
-getArticle();
+let newID = params.get('id');
 
+const image = document.getElementsByClassName('item__img');
+const title = document.getElementById('title');
+const price = document.getElementById('price');
+const description = document.getElementById('description');
+const colors = document.getElementById('colors');
 
-function getArticle() {
-    fetch("http://localhost:3000/api/products/" + idProduct)
-    .then((res) => {
-        return res.json();
-    })
+let imageURL = "";
+let imageAlt = "";
 
+fetch("http://localhost:3000/api/products/" + newID)
+  .then(res => res.json())
+  .then(data => {
     
-    .then(async function (resultatAPI) {
-        article = await resultatAPI;
-        console.table(article);
-        if (article){
-            getPost(article);
-        }
-    })
-    .catch((error) => {
-        console.log("Erreur de la requête API");
-    })
-}
-    
-function getPost(article){
-    
-    let productImg = document.createElement("img");
-    document.querySelector(".item__img").appendChild(productImg);
-    productImg.src = article.imageUrl;
-    productImg.alt = article.altTxt;
+    image[0].innerHTML = `<img src="${data.imageUrl}" alt="${data.altTxt}">`;
+    imageURL = data.imageUrl;
+    imageAlt = data.altTxt;
+    title.innerHTML = `<h1>${data.name}</h1>`;
+    price.innerText = `${data.price}`;
+    description.innerText = `${data.description}`;
 
-    
-    let productName = document.getElementById('title');
-    productName.innerHTML = article.name;
-
-    
-    let productPrice = document.getElementById('price');
-    productPrice.innerHTML = article.price;
-
-    
-    let productDescription = document.getElementById('description');
-    productDescription.innerHTML = article.description;
-
-    
-    for (let colors of article.colors){
-        console.table(colors);
-        let productColors = document.createElement("option");
-        document.querySelector("#colors").appendChild(productColors);
-        productColors.value = colors;
-        productColors.innerHTML = colors;
+    for (number in data.colors) {
+      colors.options[colors.options.length] = new Option(
+        data.colors[number],
+        data.colors[number]
+      );
     }
-    addToCart(article);
-}
+  })
+ 
+  .catch(_error => {
+    alert('Oops ! Le serveur ne répond pas, suivez les instructions dans le READ.me.');
+  });
 
 
-function addToCart(article) {
-    const btn_envoyerPanier = document.querySelector("#addToCart");
 
-    
-    btn_envoyerPanier.addEventListener("click", (event)=>{
-        if (quantityPicked.value > 0 && quantityPicked.value <=100 && quantityPicked.value != 0){
+const selectQuantity = document.getElementById('quantity');
+const selectColors = document.getElementById('colors');
 
-    
-    let choixCouleur = colorPicked.value;
-                
-    
-    let choixQuantite = quantityPicked.value;
+const addToCart = document.getElementById('addToCart');
+addToCart.addEventListener('click', (event) => {
+  event.preventDefault();
 
-    
-    let optionsProduit = {
-        idProduit: idProduct,
-        couleurProduit: choixCouleur,
-        quantiteProduit: Number(choixQuantite),
-        nomProduit: article.name,
-        prixProduit: article.price,
-        descriptionProduit: article.description,
-        imgProduit: article.imageUrl,
-        altImgProduit: article.altTxt
-    };
+  const selection = {
+    id: newID,
+    image: imageURL,
+    alt: imageAlt,
+    name: title.textContent,
+    price: price.textContent,
+    color: selectColors.value,
+    quantity: selectQuantity.value,
+  };
 
-    
-    let produitLocalStorage = JSON.parse(localStorage.getItem("produit"));
+ 
+  let productInLocalStorage =  JSON.parse(localStorage.getItem('product'));
 
-    
-    const popupConfirmation =() =>{
-        if(window.confirm(`Votre commande de ${choixQuantite} ${article.name} ${choixCouleur} est ajoutée au panier
-Pour consulter votre panier, cliquez sur OK`)){
-            window.location.href ="cart.html";
-        }
+  const addProductLocalStorage = () => {
+  productInLocalStorage.push(selection);
+  localStorage.setItem('product', JSON.stringify(productInLocalStorage));
+  }
+
+  let addConfirm = () => {
+    alert('Le produit a bien été ajouté au panier');
+  }
+
+  let update = false;
+  if (productInLocalStorage) {
+
+   productInLocalStorage.forEach (function (productOk, key) {
+    if (productOk.id == newID && productOk.color == selectColors.value) {
+      productInLocalStorage[key].quantity = parseInt(productOk.quantity) + parseInt(selectQuantity.value);
+      localStorage.setItem('product', JSON.stringify(productInLocalStorage));
+      update = true;
+      addConfirm();
     }
+  });
 
-   
-    if (produitLocalStorage) {
-    const resultFind = produitLocalStorage.find(
-        (el) => el.idProduit === idProduct && el.couleurProduit === choixCouleur);
-        
-        if (resultFind) {
-            let newQuantite =
-            parseInt(optionsProduit.quantiteProduit) + parseInt(resultFind.quantiteProduit);
-            resultFind.quantiteProduit = newQuantite;
-            localStorage.setItem("produit", JSON.stringify(produitLocalStorage));
-            console.table(produitLocalStorage);
-            popupConfirmation();
-        
-        } else {
-            produitLocalStorage.push(optionsProduit);
-            localStorage.setItem("produit", JSON.stringify(produitLocalStorage));
-            console.table(produitLocalStorage);
-            popupConfirmation();
-        }
-    
-    } else {
-        produitLocalStorage =[];
-        produitLocalStorage.push(optionsProduit);
-        localStorage.setItem("produit", JSON.stringify(produitLocalStorage));
-        console.table(produitLocalStorage);
-        popupConfirmation();
-    }}
-    });
-}
+
+    if (!update) {
+    addProductLocalStorage();
+    addConfirm();
+    }
+  }
+  else {
+    productInLocalStorage = [];
+    addProductLocalStorage();
+    addConfirm();
+  }
+});
+
